@@ -7,6 +7,7 @@ import { TopicsSkeleton, QuestionsSkeleton } from '@/components/shared/skeleton'
 import { RelatedTopics } from '@/components/explore/related-topics';
 import { RelatedQuestions } from '@/components/explore/related-questions';
 import { useUserContext } from '@/components/providers/user-provider';
+import { PreFillForm } from '@/components/shared/pre-fill-form';
 import { toast } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -98,7 +99,7 @@ const MarkdownComponents = {
 };
 
 export default function HomePage() {
-  const { userContext } = useUserContext();
+  const { userContext, setUserContext } = useUserContext();
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [showInitialSearch, setShowInitialSearch] = useState(true);
@@ -330,6 +331,10 @@ export default function HomePage() {
     }
   }, [chatThreads]);
 
+  if (!userContext) {
+    return <PreFillForm onSubmit={setUserContext} />;
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)]">
       {/* Left Sidebar */}
@@ -428,7 +433,16 @@ export default function HomePage() {
                       <div className="w-full">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <span className="text-xs">📚</span>
+                            <span className="text-xs">  <svg 
+              className="w-5 h-5" 
+              viewBox="0 0 24 24" 
+              fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+              <path d="M2 17L12 22L22 17" />
+              <path d="M2 12L12 17L22 12" />
+            </svg></span>
                           </div>
                           <span className="text-sm text-gray-400">Answer</span>
                         </div>

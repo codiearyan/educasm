@@ -25,8 +25,17 @@ export default function RootLayout({
           <div className="flex min-h-screen flex-col">
             <header className="flex justify-center p-4 border-b border-gray-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-white text-xl">📚</span>
+                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xl"> <svg 
+              className="w-5 h-5" 
+              viewBox="0 0 24 24" 
+              fill="currentColor"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+              <path d="M2 17L12 22L22 17" />
+              <path d="M2 12L12 17L22 12" />
+            </svg></span>
                 </div>
                 <span className="text-white text-xl font-semibold">educasm</span>
               </div>
