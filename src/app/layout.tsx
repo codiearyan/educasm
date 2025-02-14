@@ -20,21 +20,25 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-gray-900 text-gray-100 min-h-screen`}>
+      <body className={`${inter.className} bg-gray-900 text-gray-100`}>
         <UserProvider>
-          <main className="min-h-screen bg-background pb-20">
-            <div className="flex justify-center p-4">
+          <div className="flex min-h-screen flex-col">
+            <header className="flex justify-center p-4 border-b border-gray-800">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                   <span className="text-white text-xl">📚</span>
                 </div>
                 <span className="text-white text-xl font-semibold">educasm</span>
               </div>
-            </div>
-            {children}
-          </main>
+            </header>
+            
+            <main className="flex-1 relative">
+              {children}
+            </main>
+
+            <BottomNav />
+          </div>
           <ToasterProvider />
-          <BottomNav />
         </UserProvider>
       </body>
     </html>
