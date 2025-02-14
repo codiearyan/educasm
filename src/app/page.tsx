@@ -140,7 +140,16 @@ export default function HomePage() {
     return threadId;
   }, []);
 
-  const updateThread = useCallback((threadId: string, messages: Message[]) => {
+  const updateThread = useCallback((threadId: string, messages: Message[], forceUpdate: boolean = false) => {
+    // Only update if we have a complete message or if force update is true
+    const lastMessage = messages[messages.length - 1];
+    const isLastMessageComplete = lastMessage?.type === 'user' || 
+      (lastMessage?.content && lastMessage?.topics?.length > 0 && lastMessage?.questions?.length > 0);
+
+    if (!isLastMessageComplete && !forceUpdate) {
+      return;
+    }
+
     setChatThreads(prev => prev.map(thread => {
       if (thread.id === threadId) {
         return {
@@ -204,7 +213,7 @@ export default function HomePage() {
       const updatedMessages = [...currentMessages, newMessage, aiMessage];
       
       setMessages(updatedMessages);
-      updateThread(threadId, updatedMessages);
+      updateThread(threadId, updatedMessages, true); // Force update for user message
 
       // Scroll to bottom after adding new messages
       setTimeout(scrollToBottom, 100);
@@ -276,12 +285,18 @@ export default function HomePage() {
                 const newMessages = [...prev];
                 const lastMessage = newMessages[newMessages.length - 1];
                 if (lastMessage.type === 'ai') {
-                  newMessages[newMessages.length - 1] = {
+                  const updatedMessage = {
                     ...lastMessage,
                     content: data.text || lastMessage.content,
                     topics: data.topics || lastMessage.topics,
                     questions: data.questions || lastMessage.questions,
                   };
+                  newMessages[newMessages.length - 1] = updatedMessage;
+
+                  // Only update thread if we have complete data
+                  if (updatedMessage.content && updatedMessage.topics?.length > 0 && updatedMessage.questions?.length > 0) {
+                    updateThread(threadId, newMessages);
+                  }
                 }
                 return newMessages;
               });
