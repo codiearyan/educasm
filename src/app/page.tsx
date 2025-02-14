@@ -328,7 +328,7 @@ export default function HomePage() {
   return (
     <div className="flex h-[calc(100vh-8rem)]">
       {/* Left Sidebar */}
-      <div className="hidden md:flex flex-col w-64 min-w-64 border-r border-gray-800 bg-background overflow-hidden">
+      <div className="hidden md:flex flex-col w-64 min-w-64 border-r border-gray-800  overflow-hidden">
         <div className="p-4 border-b border-gray-800">
           <Button 
             variant="outline" 
