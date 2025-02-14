@@ -224,7 +224,37 @@ export default function HomePage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch content');
+        const errorData = await response.json();
+        
+        setMessages(prev => prev.slice(0, -2));
+        updateThread(threadId, updatedMessages.slice(0, -2));
+
+        if (response.status === 429) {
+          // Rate limit error
+          const resetTime = new Date(errorData.resetAt);
+          const timeUntilReset = Math.ceil((resetTime.getTime() - Date.now()) / 1000);
+          
+          let timeMessage = '';
+          if (timeUntilReset < 60) {
+            timeMessage = `${timeUntilReset} seconds`;
+          } else if (timeUntilReset < 3600) {
+            timeMessage = `${Math.ceil(timeUntilReset / 60)} minutes`;
+          } else {
+            timeMessage = `${Math.ceil(timeUntilReset / 3600)} hours`;
+          }
+
+          toast.error(
+            <div className="flex flex-col gap-1">
+              <span className="font-medium">Rate limit exceeded</span>
+              <span className="text-sm">Please try again in {timeMessage}</span>
+            </div>,
+            { duration: 5000 }
+          );
+        } else {
+          throw new Error(errorData.error || 'Failed to fetch content');
+        }
+        setIsLoading(false);
+        return;
       }
 
       const reader = response.body?.getReader();
