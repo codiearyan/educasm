@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
           console.error('Error writing chunk:', error);
         }
       },
-      previousMessages // Pass previous messages to GPT service
+      previousMessages // Pass previous messages to maintain context
     ).then(() => {
       writer.close();
     }).catch(async (error) => {

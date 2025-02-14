@@ -1,6 +1,23 @@
 import OpenAI from 'openai';
 import { Question, UserContext, ExploreResponse } from '../types';
 
+interface Message {
+  id: string;
+  type: 'user' | 'ai';
+  content?: string;
+  topics?: Array<{
+    topic: string;
+    type: string;
+    reason: string;
+  }>;
+  questions?: Array<{
+    question: string;
+    type: string;
+    context: string;
+  }>;
+  timestamp: number;
+}
+
 export class GPTService {
   private openai: OpenAI;
 
@@ -179,14 +196,21 @@ export class GPTService {
   async streamExploreContent(
     query: string, 
     userContext: UserContext,
-    onChunk: (content: { text?: string, topics?: any[], questions?: any[] }) => void
+    onChunk: (content: { text?: string, topics?: any[], questions?: any[] }) => void,
+    previousMessages?: Message[]
   ): Promise<void> {
     const maxRetries = 3;
     let retryCount = 0;
 
     while (retryCount < maxRetries) {
       try {
+        // Build context from previous messages
+        const contextString = previousMessages?.map(msg => 
+          `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+        ).join('\n') || '';
+
         const systemPrompt = `You are a Gen-Z tutor who explains complex topics concisely for a ${userContext.age} year old.
+          ${contextString ? '\nPrevious conversation context:\n' + contextString + '\n\nContinue the conversation naturally.' : ''}
           First provide the explanation in plain text, then provide related content in a STRICT single-line JSON format.
           
           Structure your response exactly like this:
@@ -198,10 +222,12 @@ export class GPTService {
           <paragraph 3>
 
           ---
-          {"topics":[{"name":"Topic","type":"prerequisite","detail":"Why"}],"questions":[{"text":"Q?","type":"curiosity","detail":"Context"}]}
+          {"topics":[{"name":"Topic Name","type":"prerequisite|extension|application|parallel|deeper","detail":"Why"}],"questions":[{"text":"Q?","type":"curiosity","detail":"Context"}]}
 
           RULES:
           - ADAPT CONTENT FOR ${userContext.age} YEAR OLD
+          - Consider the previous context when providing new information
+          - Topic types MUST be one of: prerequisite, extension, application, parallel, deeper
           - STRICT LENGTH LIMITS:
             * Each paragraph around 20-25 words
             * Related questions maximum 12 words each
@@ -271,7 +297,7 @@ export class GPTService {
                   if (parsed.topics && Array.isArray(parsed.topics)) {
                     currentTopics = parsed.topics.map((topic: any) => ({
                       topic: topic.name,
-                      type: topic.type,
+                      type: topic.type.toLowerCase(),
                       reason: topic.detail
                     }));
                   }

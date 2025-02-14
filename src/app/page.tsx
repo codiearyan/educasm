@@ -433,7 +433,6 @@ export default function HomePage() {
                                 <QuestionsSkeleton />
                               ) : message.questions && message.questions.length > 0 && (
                                 <div className="mt-6">
-                                  <h3 className="text-sm font-medium text-gray-400 mb-3">Curious to Learn More?</h3>
                                   <RelatedQuestions
                                     questions={message.questions}
                                     onQuestionClick={(query) => handleRelatedQueryClick(query, true)}

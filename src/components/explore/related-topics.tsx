@@ -1,5 +1,7 @@
 'use client';
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 interface RelatedTopicsProps {
   topics: Array<{
     topic: string;
@@ -27,18 +29,41 @@ export const RelatedTopics = ({ topics, onTopicClick }: RelatedTopicsProps) => {
     }
   };
 
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'prerequisite': return '📚';
+      case 'extension': return '🚀';
+      case 'application': return '🛠️';
+      case 'parallel': return '🔄';
+      case 'deeper': return '🔍';
+      default: return '💡';
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-2 mt-4 mb-6">
       {topics.map((topic, index) => (
-        <button
-          key={index}
-          onClick={() => onTopicClick(topic.topic)}
-          className={`px-3 py-1 rounded-full text-xs font-medium border 
-            transition-all duration-200 hover:scale-105 
-            ${getTypeColor(topic.type)}`}
-        >
-          {topic.topic}
-        </button>
+        <TooltipProvider key={index} delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onTopicClick(topic.topic)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border 
+                  transition-all duration-200 hover:scale-105 flex items-center gap-1.5
+                  ${getTypeColor(topic.type)}`}
+              >
+                <span>{getTypeIcon(topic.type)}</span>
+                <span>{topic.topic}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent 
+              side="bottom" 
+              className="max-w-[200px] text-xs"
+            >
+              {topic.reason}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       ))}
     </div>
   );
