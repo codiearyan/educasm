@@ -18,8 +18,20 @@ interface Message {
   timestamp: number;
 }
 
+interface QuestionPerformance {
+  timeTaken: number;
+  wasCorrect: boolean;
+  previousLevel: number;
+}
+
+interface QuestionHistory {
+  text: string;
+  similarity: number;
+}
+
 export class GPTService {
   private openai: OpenAI;
+  private static readonly SIMILARITY_THRESHOLD = 0.8;
 
   constructor() {
     if (!process.env.OPENAI_API_KEY) {
@@ -346,8 +358,64 @@ export class GPTService {
     }
   }
 
-  async getQuestion(topic: string, level: number, userContext: UserContext): Promise<Question> {
+  private calculateNextLevel(performance: QuestionPerformance): number {
+    const { timeTaken, wasCorrect, previousLevel } = performance;
+    
+    // Fast and correct: increase difficulty
+    if (wasCorrect && timeTaken < 5) {
+      return Math.min(5, previousLevel + 1);
+    }
+    
+    // Slow and incorrect: decrease difficulty
+    if (!wasCorrect && timeTaken > 20) {
+      return Math.max(1, previousLevel - 1);
+    }
+    
+    // Correct but slow: maintain level
+    if (wasCorrect && timeTaken >= 10) {
+      return previousLevel;
+    }
+    
+    // Quick but incorrect: slight decrease
+    if (!wasCorrect && timeTaken <= 20) {
+      return Math.max(1, previousLevel - 0.5);
+    }
+    
+    return previousLevel;
+  }
+
+  private calculateSimilarity(str1: string, str2: string): number {
+    const words1 = str1.toLowerCase().split(/\s+/);
+    const words2 = str2.toLowerCase().split(/\s+/);
+    
+    const intersection = words1.filter(word => words2.includes(word));
+    const union = new Set([...words1, ...words2]);
+    
+    return intersection.length / union.size;
+  }
+
+  private isQuestionSimilar(newQuestion: string, history: QuestionHistory[]): boolean {
+    for (const item of history) {
+      const similarity = this.calculateSimilarity(newQuestion, item.text);
+      if (similarity > GPTService.SIMILARITY_THRESHOLD) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async getQuestion(
+    topic: string, 
+    level: number, 
+    userContext: UserContext,
+    performance?: QuestionPerformance,
+    questionHistory: string[] = []
+  ): Promise<Question> {
     try {
+      const adjustedLevel = performance 
+        ? this.calculateNextLevel(performance)
+        : level;
+
       const aspects = [
         'core_concepts',
         'applications',
@@ -361,6 +429,9 @@ export class GPTService {
       const systemPrompt = `You are an expert tutor creating multiple-choice questions about ${topic}.
         Focus on: ${selectedAspect.replace('_', ' ')}
 
+        Previous questions asked (DO NOT repeat similar questions):
+        ${questionHistory.join('\n')}
+
         Return ONLY a JSON object in this EXACT format:
         {
           "text": "Clear, concise question text",
@@ -369,7 +440,8 @@ export class GPTService {
           "explanation": {
             "correct": "Brief explanation of why the answer is correct",
             "key_point": "Key concept to remember"
-          }
+          },
+          "difficulty": number between 1-5
         }
 
         IMPORTANT RULES:
@@ -379,13 +451,15 @@ export class GPTService {
         4. correctAnswer must be 0-3 (index of correct option)
         5. Explanation must be clear and concise
         6. Key point must be memorable
-        7. Adapt difficulty to level ${level}/5
-        8. Use age-appropriate language for age ${userContext.age}`;
+        7. Set difficulty to exactly ${adjustedLevel}
+        8. Use age-appropriate language for age ${userContext.age}
+        9. DO NOT repeat or create questions similar to the previous ones listed above`;
 
-      const userPrompt = `Create a ${level}/5 difficulty question about ${topic} that is engaging for a ${userContext.age} year old.
+      const userPrompt = `Create a ${adjustedLevel}/5 difficulty question about ${topic} that is engaging for a ${userContext.age} year old.
         Make it practical and relatable.
-        Ensure all options are distinct but plausible.
-        Keep explanations concise but clear.`;
+        Ensure options are distinct but plausible.
+        Keep explanations concise but clear.
+        IMPORTANT: Create a completely different question from the previous ones.`;
 
       const content = await this.makeRequest(systemPrompt, userPrompt);
       
@@ -396,6 +470,15 @@ export class GPTService {
       let parsedContent: Question;
       try {
         parsedContent = JSON.parse(content);
+        parsedContent.difficulty = adjustedLevel;
+
+        // Check if the new question is too similar to previous ones
+        const questionHistoryObjects = questionHistory.map(q => ({ text: q, similarity: 0 }));
+        if (this.isQuestionSimilar(parsedContent.text, questionHistoryObjects)) {
+          // If too similar, try again with a different aspect
+          return this.getQuestion(topic, level, userContext, performance, questionHistory);
+        }
+
       } catch (error) {
         console.error('JSON Parse Error:', error);
         throw new Error('Invalid JSON response');

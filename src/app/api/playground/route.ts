@@ -3,7 +3,7 @@ import { GPTService } from '@/lib/gpt';
 
 export async function POST(req: NextRequest) {
   try {
-    const { topic, level, userContext } = await req.json();
+    const { topic, level, userContext, performance, questionHistory } = await req.json();
 
     if (!topic || !level || !userContext?.age) {
       return NextResponse.json(
@@ -13,7 +13,13 @@ export async function POST(req: NextRequest) {
     }
 
     const gptService = new GPTService();
-    const question = await gptService.getQuestion(topic, level, userContext);
+    const question = await gptService.getQuestion(
+      topic, 
+      level, 
+      userContext, 
+      performance,
+      questionHistory || []
+    );
 
     return NextResponse.json(question);
   } catch (error) {

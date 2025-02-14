@@ -14,6 +14,7 @@ interface Question {
     correct: string;
     key_point: string;
   };
+  difficulty?: number;
 }
 
 interface UserContext {
@@ -97,25 +98,16 @@ export const PlaygroundView = ({
   });
 
   const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [lastPerformance, setLastPerformance] = useState<{
+    timeTaken: number;
+    wasCorrect: boolean;
+    previousLevel: number;
+  } | null>(null);
 
-  const startQuestionTimer = useCallback(() => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      setTimerInterval(null);
-    }
-    
-    const interval = setInterval(() => {
-      setCurrentQuestionTime(prev => prev + 1);
-    }, 1000);
-    setTimerInterval(interval);
-  }, [timerInterval]);
+  const [questionHistory, setQuestionHistory] = useState<string[]>([]);
 
-  const stopQuestionTimer = useCallback(() => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      setTimerInterval(null);
-    }
-  }, [timerInterval]);
+  const COUNTDOWN_DURATION = 5;
 
   const fetchNewQuestion = async () => {
     if (!query) return;
@@ -135,8 +127,10 @@ export const PlaygroundView = ({
         },
         body: JSON.stringify({ 
           topic: query, 
-          level: 1, 
-          userContext 
+          level: currentLevel, 
+          userContext,
+          performance: lastPerformance,
+          questionHistory
         }),
       });
 
@@ -152,6 +146,122 @@ export const PlaygroundView = ({
     }
   };
 
+  const updateStats = useCallback((isCorrect: boolean): void => {
+    setStats((prev) => {
+      const newQuestions = prev.questions + 1;
+      const newAccuracy = (prev.accuracy * prev.questions + (isCorrect ? 100 : 0)) / newQuestions;
+      const newStreak = isCorrect ? prev.streak + 1 : 0;
+      
+      return {
+        questions: newQuestions,
+        accuracy: newAccuracy,
+        streak: newStreak,
+        bestStreak: Math.max(prev.bestStreak, newStreak),
+        avgTime: (prev.avgTime * prev.questions + currentQuestionTime) / newQuestions,
+      };
+    });
+  }, [currentQuestionTime]);
+
+  const startQuestionTimer = useCallback(() => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+    
+    const interval = setInterval(() => {
+      setCurrentQuestionTime(prev => prev + 1);
+    }, 1000);
+    setTimerInterval(interval);
+  }, []);
+
+  const stopQuestionTimer = useCallback(() => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+  }, [timerInterval]);
+
+  const startCountdown = useCallback(() => {
+    if (isPaused) return;
+
+    // Clear any existing countdown
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      setCountdownInterval(null);
+    }
+
+    setNextQuestionCountdown(COUNTDOWN_DURATION);
+    
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsedTime = (Date.now() - startTime) / 1000;
+      const remainingTime = COUNTDOWN_DURATION - elapsedTime;
+      
+      if (remainingTime <= 0) {
+        clearInterval(interval);
+        setCountdownInterval(null);
+        setNextQuestionCountdown(null);
+        setShouldShowNext(true);
+      } else {
+        setNextQuestionCountdown(Math.max(0, Number(remainingTime.toFixed(1))));
+      }
+    }, 100);
+
+    setCountdownInterval(interval);
+  }, [isPaused, countdownInterval]);
+
+  const stopCountdown = useCallback(() => {
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      setCountdownInterval(null);
+      setNextQuestionCountdown(null);
+      setShouldShowNext(false);
+    }
+  }, [countdownInterval]);
+
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => {
+      if (!prev) { // If we're pausing
+        stopQuestionTimer();
+        stopCountdown();
+      }
+      return !prev;
+    });
+  }, [stopQuestionTimer, stopCountdown]);
+
+  const handleAnswer = useCallback((index: number) => {
+    if (selectedAnswer !== null || !currentQuestion || isPaused) return;
+    
+    setSelectedAnswer(index);
+    setShowExplanation(true);
+    stopQuestionTimer();
+    const isCorrect = index === currentQuestion.correctAnswer;
+    updateStats(isCorrect);
+    
+    setLastPerformance({
+      timeTaken: currentQuestionTime,
+      wasCorrect: isCorrect,
+      previousLevel: currentLevel
+    });
+    
+    if (!isPaused) {
+      setPreloadedQuestion(null);
+      fetchNewQuestion();
+      stopCountdown(); // Stop any existing countdown
+      startCountdown(); // Start a new countdown
+    }
+  }, [
+    currentQuestion,
+    isPaused,
+    selectedAnswer,
+    stopQuestionTimer,
+    updateStats,
+    fetchNewQuestion,
+    startCountdown,
+    stopCountdown,
+    currentQuestionTime,
+    currentLevel
+  ]);
+
   const handleSearch = async (newQuery: string) => {
     try {
       if (!newQuery.trim()) return;
@@ -166,6 +276,10 @@ export const PlaygroundView = ({
       setSelectedAnswer(null);
       setShowExplanation(false);
       setQuery(newQuery);
+      setCurrentLevel(1);
+      setLastPerformance(null);
+      // Reset question history for new topic
+      setQuestionHistory([]);
 
       const response = await fetch('/api/playground', {
         method: 'POST',
@@ -175,7 +289,8 @@ export const PlaygroundView = ({
         body: JSON.stringify({ 
           topic: newQuery, 
           level: 1, 
-          userContext 
+          userContext,
+          questionHistory: []
         }),
       });
 
@@ -212,125 +327,29 @@ export const PlaygroundView = ({
     }
   };
 
-  const COUNTDOWN_DURATION = 5;
-
-  const startCountdown = useCallback(() => {
-    // Clear any existing countdown first
-    if (countdownInterval) {
-      clearInterval(countdownInterval);
-      setCountdownInterval(null);
-    }
-
-    // Set initial countdown value
-    setNextQuestionCountdown(COUNTDOWN_DURATION);
-    
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsedTime = (Date.now() - startTime) / 1000; // Convert to seconds
-      const remainingTime = COUNTDOWN_DURATION - elapsedTime;
-      
-      if (remainingTime <= 0) {
-        clearInterval(interval);
-        setCountdownInterval(null);
-        setNextQuestionCountdown(null);
-        setShouldShowNext(true);
-      } else {
-        setNextQuestionCountdown(Math.max(0, Number(remainingTime.toFixed(1))));
+  // Single effect to manage timers based on state
+  useEffect(() => {
+    if (!isPaused && currentQuestion) {
+      if (selectedAnswer === null) {
+        if (!timerInterval) {
+          startQuestionTimer();
+        }
+      } else if (showExplanation && !sessionStats.isSessionComplete) {
+        if (!countdownInterval) {
+          startCountdown();
+        }
       }
-    }, 100); // Update every 100ms for smooth countdown
-
-    setCountdownInterval(interval);
-  }, []);
-
-  const stopCountdown = useCallback(() => {
-    if (countdownInterval) {
-      clearInterval(countdownInterval);
-      setCountdownInterval(null);
-      setNextQuestionCountdown(null);
-      setShouldShowNext(false); // Reset shouldShowNext when stopping countdown
     }
-  }, []);
 
-  const updateStats = useCallback((isCorrect: boolean): void => {
-    setStats((prev) => {
-      const newQuestions = prev.questions + 1;
-      const newAccuracy = (prev.accuracy * prev.questions + (isCorrect ? 100 : 0)) / newQuestions;
-      const newStreak = isCorrect ? prev.streak + 1 : 0;
-      
-      return {
-        questions: newQuestions,
-        accuracy: newAccuracy,
-        streak: newStreak,
-        bestStreak: Math.max(prev.bestStreak, newStreak),
-        avgTime: (prev.avgTime * prev.questions + currentQuestionTime) / newQuestions,
-      };
-    });
-  }, [currentQuestionTime]);
-
-  const togglePause = useCallback(() => {
-    setIsPaused(prev => !prev);
-  }, []);
-
-  const handleAnswer = useCallback((index: number) => {
-    if (selectedAnswer !== null || !currentQuestion) return;
-    
-    setSelectedAnswer(index);
-    setShowExplanation(true);
-    stopQuestionTimer();
-    updateStats(index === currentQuestion.correctAnswer);
-    
-    if (!isPaused) {
-      fetchNewQuestion();
-      // Clear any existing countdown before starting new one
-      stopCountdown();
-      startCountdown();
-    }
-  }, [
-    currentQuestion,
-    isPaused,
-    selectedAnswer,
-    stopQuestionTimer,
-    updateStats,
-    fetchNewQuestion,
-    startCountdown,
-    stopCountdown
-  ]);
-
-  useEffect(() => {
-    if (shouldShowNext && preloadedQuestion && !isPaused) {
-      stopCountdown();
-      setCurrentQuestion(preloadedQuestion);
-      setPreloadedQuestion(null);
-      setShouldShowNext(false);
-      setSelectedAnswer(null);
-      setShowExplanation(false);
-      setCurrentQuestionTime(0);
-      setSessionStats(prev => ({
-        ...prev,
-        totalQuestions: prev.totalQuestions + 1
-      }));
-    }
-  }, [shouldShowNext, preloadedQuestion, isPaused, stopCountdown]);
-
-  useEffect(() => {
-    const cleanup = () => {
+    // Cleanup function
+    return () => {
       if (timerInterval) {
         clearInterval(timerInterval);
       }
-      stopCountdown();
-    };
-
-    if (isPaused) {
-      cleanup();
-    } else {
-      if (currentQuestion && selectedAnswer === null && !timerInterval) {
-        startQuestionTimer();
-      } else if (showExplanation && !sessionStats.isSessionComplete && !countdownInterval) {
-        startCountdown();
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
       }
-    }
-
-    return cleanup;
+    };
   }, [
     isPaused,
     currentQuestion,
@@ -340,20 +359,31 @@ export const PlaygroundView = ({
     timerInterval,
     countdownInterval,
     startQuestionTimer,
-    startCountdown,
-    stopCountdown
+    startCountdown
   ]);
 
   useEffect(() => {
-    return () => {
-      if (timerInterval) {
-        clearInterval(timerInterval);
+    if (shouldShowNext && preloadedQuestion && !isPaused) {
+      stopCountdown();
+      setCurrentQuestion(preloadedQuestion);
+      if (preloadedQuestion.text) {
+        setQuestionHistory(prev => [...prev, preloadedQuestion.text]);
       }
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
+      if (preloadedQuestion.difficulty) {
+        setCurrentLevel(preloadedQuestion.difficulty);
       }
-    };
-  }, [timerInterval, countdownInterval]);
+      setPreloadedQuestion(null);
+      setShouldShowNext(false);
+      setSelectedAnswer(null);
+      setShowExplanation(false);
+      setCurrentQuestionTime(0);
+      startQuestionTimer();
+      setSessionStats(prev => ({
+        ...prev,
+        totalQuestions: prev.totalQuestions + 1
+      }));
+    }
+  }, [shouldShowNext, preloadedQuestion, isPaused, stopCountdown, startQuestionTimer]);
 
   const formatAccuracy = (accuracy: number): number => {
     return Math.round(accuracy);
