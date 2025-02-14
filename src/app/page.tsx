@@ -105,6 +105,7 @@ export default function HomePage() {
   const [chatThreads, setChatThreads] = useState<ChatThread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string>('');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToTop = useCallback((force: boolean = false) => {
     if (force) {
@@ -121,13 +122,7 @@ export default function HomePage() {
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    if (messagesContainerRef.current) {
-      const scrollHeight = messagesContainerRef.current.scrollHeight;
-      messagesContainerRef.current.scrollTo({ 
-        top: scrollHeight,
-        behavior: 'smooth'
-      });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   const createNewThread = useCallback((query: string) => {
@@ -210,6 +205,9 @@ export default function HomePage() {
       setMessages(updatedMessages);
       updateThread(threadId, updatedMessages);
 
+      // Scroll to bottom after adding new messages
+      setTimeout(scrollToBottom, 100);
+
       const response = await fetch('/api/explore', {
         method: 'POST',
         headers: {
@@ -286,6 +284,11 @@ export default function HomePage() {
                 }
                 return newMessages;
               });
+
+              // Scroll to bottom after each chunk
+              requestAnimationFrame(() => {
+                scrollToBottom();
+              });
             } catch (error) {
               console.error('Error parsing chunk:', error);
             }
@@ -294,6 +297,8 @@ export default function HomePage() {
       } finally {
         reader.releaseLock();
         setIsLoading(false);
+        // Final scroll to bottom
+        setTimeout(scrollToBottom, 100);
       }
 
       if (isFollowUp) {
@@ -305,7 +310,7 @@ export default function HomePage() {
       toast.error(error instanceof Error ? error.message : 'Failed to load content');
       setIsLoading(false);
     }
-  }, [currentThreadId, messages, createNewThread, updateThread, scrollToTop, userContext]);
+  }, [currentThreadId, messages, createNewThread, updateThread, scrollToTop, userContext, scrollToBottom]);
 
   const handleRelatedQueryClick = useCallback((query: string, isQuestion: boolean = false) => {
     handleSearch(query, true);
@@ -403,10 +408,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="relative flex-1 flex flex-col overflow-hidden">
-            <ScrollArea 
-              ref={messagesContainerRef} 
-              className="flex-1 pb-[120px]"
-            >
+            <ScrollArea ref={messagesContainerRef} className="flex-1 pb-[120px]">
               <div className="max-w-2xl mx-auto p-4 space-y-6">
                 {messages.map((message, index) => (
                   <div key={index} className="relative">
@@ -476,10 +478,15 @@ export default function HomePage() {
                     )}
                   </div>
                 ))}
+                <div 
+                  ref={messagesEndRef}
+                  className="h-8 w-full"
+                  aria-hidden="true"
+                />
               </div>
             </ScrollArea>
 
-            <div className="absolute bottom-0 left-0 right-0 bg-transparent">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent pb-1 pt-2">
               <div className="max-w-2xl mx-auto px-4">
                 <div className="border-t border-gray-800 w-full my-4" />
                 <div className="pb-4">
