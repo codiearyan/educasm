@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HelpCircle, GamepadIcon } from 'lucide-react';
+import { HelpCircle, GamepadIcon, Compass, Gamepad2 } from 'lucide-react';
 
 export const BottomNav = () => {
   const pathname = usePathname();
@@ -18,7 +18,7 @@ export const BottomNav = () => {
             className={`flex flex-col items-center space-y-1 transition-colors
               ${isActive('/') ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}
           >
-            <HelpCircle className="w-6 h-6" />
+             <Compass className="w-6 h-6" />
             <span className="text-xs">Explore</span>
           </Link>
 
@@ -27,7 +27,7 @@ export const BottomNav = () => {
             className={`flex flex-col items-center space-y-1 transition-colors
               ${isActive('/playground') ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}
           >
-            <GamepadIcon className="w-6 h-6" />
+           <Gamepad2 className="w-6 h-6" />
             <span className="text-xs">Playground</span>
           </Link>
         </div>
