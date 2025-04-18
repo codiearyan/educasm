@@ -287,7 +287,6 @@ export class GPTService {
             jsonContent = jsonPart ? jsonPart.trim() : '';
             buffer = jsonPart ? jsonPart.trim() : '';
             
-            // Send the main content update
             onChunk({ 
               text: mainContent,
               topics: currentTopics,

@@ -518,7 +518,7 @@ export const PlaygroundView = ({
                   className={`w-full text-left px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg 
                     text-xs sm:text-sm leading-relaxed ${
                       selectedAnswer === null
-                        ? "bg-card hover:bg-gray-800"
+                        ? "bg-card hover:bg-gray-600"
                         : idx === currentQuestion.correctAnswer
                         ? "bg-green-500/20 text-green-500"
                         : selectedAnswer === idx

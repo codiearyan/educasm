@@ -30,6 +30,15 @@ export const BottomNav = () => {
            <Gamepad2 className="w-6 h-6" />
             <span className="text-xs">Playground</span>
           </Link>
+
+          <Link
+            href="/sessions"
+            className={`flex flex-col items-center space-y-1 transition-colors
+              ${isActive('/sessions') ? 'text-primary' : 'text-gray-400 hover:text-gray-300'}`}
+          >
+           <Gamepad2 className="w-6 h-6" />
+            <span className="text-xs">Sessions</span>
+          </Link>
         </div>
       </div>
     </nav>
