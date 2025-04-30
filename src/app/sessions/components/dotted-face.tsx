@@ -9,7 +9,8 @@ export const DottedFace = () => {
         width={350}
         height={350}
         priority
+        unoptimized
       />
     </div>
   );
-}; 
+};
