@@ -1,30 +1,30 @@
-import React, { useState } from 'react';
-import { UserContext } from '../../types';
-
+import React, { useState } from "react";
+import { UserContext } from "../../types";
+import Image from "next/image";
 interface PreFillFormProps {
   onSubmit: (context: UserContext) => void;
 }
 
 export const PreFillForm: React.FC<PreFillFormProps> = ({ onSubmit }) => {
-  const [age, setAge] = useState<string>('');
-  
+  const [age, setAge] = useState<string>("");
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const ageNumber = parseInt(age);
     if (isNaN(ageNumber) || ageNumber < 1 || ageNumber > 100) {
       return;
     }
 
     onSubmit({
-      age: ageNumber
+      age: ageNumber,
     });
   };
 
   const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     // Allow empty string or valid numbers
-    if (value === '' || /^\d{1,3}$/.test(value)) {
+    if (value === "" || /^\d{1,3}$/.test(value)) {
       setAge(value);
     }
   };
@@ -34,19 +34,23 @@ export const PreFillForm: React.FC<PreFillFormProps> = ({ onSubmit }) => {
       <div className="max-w-md w-full m-4 space-y-8 bg-gray-800/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-gray-700/50 animate-fade-in">
         {/* Logo and Title */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 mb-4 flex items-center justify-center 
-            bg-primary rounded-xl text-white text-2xl font-bold">
-            {/* Stacked layers logo */}
-            <svg 
-              className="w-10 h-10" 
-              viewBox="0 0 24 24" 
-              fill="currentColor"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" />
-              <path d="M2 17L12 22L22 17" />
-              <path d="M2 12L12 17L22 12" />
-            </svg>
+          <div className="flex items-center  justify-center mb-2 w-full gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-white text-xl">
+                {" "}
+                <svg
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                  <path d="M2 17L12 22L22 17" />
+                  <path d="M2 12L12 17L22 12" />
+                </svg>
+              </span>
+            </div>
+            <span className="text-white text-xl font-semibold">educasm</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             Welcome to Educasm
@@ -59,7 +63,10 @@ export const PreFillForm: React.FC<PreFillFormProps> = ({ onSubmit }) => {
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="age" className="block text-sm font-medium text-gray-300 mb-2">
+              <label
+                htmlFor="age"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
                 Your Age
               </label>
               <div className="relative">
@@ -100,4 +107,4 @@ export const PreFillForm: React.FC<PreFillFormProps> = ({ onSubmit }) => {
       </div>
     </div>
   );
-}; 
+};
